@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аренда загородного дома</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .gallery img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .booking-section {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .calendar-container {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .day-header {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px;
+            background: #f0f0f0;
+        }
+        .day {
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        .day:hover {
+            background-color: #e0e0e0;
+        }
+        .day.past {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        .day.booked {
+            background-color: #ffdddd;
+            cursor: not-allowed;
+        }
+        .day.selected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .booking-form {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .selected-dates {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px dashed #4CAF50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Аренда загородного дома</h1>
+        
+        <div class="gallery">
+            <img src="/static/images/house1.jpg" alt="Фото дома 1">
+            <img src="/static/images/house2.jpg" alt="Фото дома 2">
+        </div>
+        
+        <div class="booking-section">
+            <div class="calendar-container">
+                <h2>Выберите даты</h2>
+                <div class="calendar-header">
+                    <button id="prev-month"><i class="fas fa-chevron-left"></i> Назад</button>
+                    <h3 id="current-month"></h3>
+                    <button id="next-month">Вперед <i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div class="calendar" id="calendar"></div>
+            </div>
+            
+            <div class="booking-form" id="booking-form">
+                <h2>Форма бронирования</h2>
+                <div class="selected-dates" id="selected-dates"></div>
+                <form id="bookingForm">
+                    <input type="hidden" id="checkin" name="checkin">
+                    <input type="hidden" id="checkout" name="checkout">
+                    
+                    <div class="form-group">
+                        <label for="name">Ваше имя:*</label>
+                        <input type="text" id="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email:*</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Телефон:</label>
+                        <input type="tel" id="phone">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="guests">Количество гостей:*</label>
+                        <select id="guests" required>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5+</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message">Дополнительные пожелания:</label>
+                        <textarea id="message" rows="4"></textarea>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn">Подтвердить бронирование</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Текущая дата и выбранные даты
+            let currentDate = new Date();
+            let selectedStartDate = null;
+            let selectedEndDate = null;
+            let bookedDates = [];
+            
+            // Элементы DOM
+            const calendarEl = document.getElementById('calendar');
+            const currentMonthEl = document.getElementById('current-month');
+            const prevMonthBtn = document.getElementById('prev-month');
+            const nextMonthBtn = document.getElementById('next-month');
+            const bookingFormEl = document.getElementById('booking-form');
+            const selectedDatesEl = document.getElementById('selected-dates');
+            const bookingForm = document.getElementById('bookingForm');
+            const checkinInput = document.getElementById('checkin');
+            const checkoutInput = document.getElementById('checkout');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            // Загрузка занятых дат с сервера
+            async function loadBookedDates() {
+                try {
+                    const response = await fetch('/api/bookings');
+                    if (!response.ok) throw new Error('Ошибка загрузки данных');
+                    return await response.json();
+                } catch (error) {
+                    console.error('Ошибка:', error);
+                    alert('Не удалось загрузить данные о бронированиях');
+                    return [];
+                }
+            }
+            
+            // Форматирование даты для отображения
+            function formatDisplayDate(date) {
+                const options = { day: 'numeric', month: 'long', year: 'numeric' };
+                return date.toLocaleDateString('ru-RU', options);
+            }
+            
+            // Форматирование даты для отправки на сервер
+            function formatDateForBackend(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            
+            // Генерация календаря
+            async function generateCalendar() {
+                bookedDates = await loadBookedDates();
+                calendarEl.innerHTML = '';
+                
+                // Заголовки дней недели
+                const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+                dayNames.forEach(day => {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'day-header';
+                    dayEl.textContent = day;
+                    calendarEl.appendChild(dayEl);
+                });
+                
+                // Получаем первый и последний день месяца
+                const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                
+                // Корректировка для понедельника как первого дня недели
+                let startDay = firstDay.getDay();
+                startDay = startDay === 0 ? 6 : startDay - 1; // Вс = 0 -> 6, Пн = 1 -> 0
+                
+                // Пустые ячейки перед первым днем месяца
+                for (let i = 0; i < startDay; i++) {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'day';
+                    calendarEl.appendChild(emptyEl);
+                }
+                
+                // Ячейки с днями месяца
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'day';
+                    dayEl.textContent = day;
+                    
+                    // Проверка статуса дня
+                    if (date < today) {
+                        dayEl.classList.add('past');
+                    } else {
+                        const isBooked = bookedDates.some(booking => {
+                            const checkin = new Date(booking.checkin);
+                            const checkout = new Date(booking.checkout);
+                            return date >= checkin && date <= checkout;
+                        });
+                        
+                        if (isBooked) {
+                            dayEl.classList.add('booked');
+                        } else {
+                            dayEl.addEventListener('click', () => selectDate(date));
+                        }
+                    }
+                    
+                    // Выделение выбранных дат
+                    if (selectedStartDate && isSameDate(date, selectedStartDate)) {
+                        dayEl.classList.add('selected');
+                    }
+                    if (selectedEndDate && isSameDate(date, selectedEndDate)) {
+                        dayEl.classList.add('selected');
+                    }
+                    if (selectedStartDate && selectedEndDate && 
+                        date > selectedStartDate && date < selectedEndDate) {
+                        dayEl.classList.add('selected');
+                    }
+                    
+                    calendarEl.appendChild(dayEl);
+                }
+                
+                // Обновление заголовка месяца
+                const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                               'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                currentMonthEl.textContent = `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+            }
+            
+            // Сравнение дат
+            function isSameDate(date1, date2) {
+                return date1.getFullYear() === date2.getFullYear() && 
+                       date1.getMonth() === date2.getMonth() && 
+                       date1.getDate() === date2.getDate();
+            }
+            
+            // Выбор даты
+            function selectDate(date) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Проверка на прошедшую дату
+                if (date < today) {
+                    alert("Нельзя выбрать прошедшую дату");
+                    return;
+                }
+                
+                // Если не выбрана начальная дата или выбраны обе даты
+                if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+                    selectedStartDate = date;
+                    selectedEndDate = null;
+                    bookingFormEl.style.display = 'none';
+                } 
+                // Если выбрана только начальная дата
+                else {
+                    // Если новая дата раньше начальной
+                    if (date < selectedStartDate) {
+                        selectedStartDate = date;
+                    } 
+                    // Если корректный диапазон
+                    else {
+                        selectedEndDate = date;
+                        showBookingForm();
+                    }
+                }
+                
+                generateCalendar();
+            }
+            
+            // Показать форму бронирования
+            function showBookingForm() {
+                checkinInput.value = formatDateForBackend(selectedStartDate);
+                checkoutInput.value = formatDateForBackend(selectedEndDate);
+                selectedDatesEl.textContent = `С ${formatDisplayDate(selectedStartDate)} по ${formatDisplayDate(selectedEndDate)}`;
+                bookingFormEl.style.display = 'block';
+            }
+            
+            // Отправка формы бронирования
+            bookingForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Отправка...';
+                
+                const formData = {
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    checkin: checkinInput.value,
+                    checkout: checkoutInput.value,
+                    guests: document.getElementById('guests').value,
+                    message: document.getElementById('message').value
+                };
+                try{
+                    const response = await fetch('/api/book', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert(result.message);
+                        bookingForm.reset();
+                        bookingFormEl.style.display = 'none';
+                        selectedStartDate = null;
+                        selectedEndDate = null;
+                        await generateCalendar();
+                    } else {
+                        alert(result.message || 'Ошибка бронирования');
+                    }
+                } catch (error) {
+                    console.error('Ошибка:', error);
+                    alert('Ошибка соединения с сервером');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Подтвердить бронирование';
+                }
+            });
+            
+            // Навигация по месяцам
+            prevMonthBtn.addEventListener('click', function() {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                generateCalendar();
+            });
+            
+            nextMonthBtn.addEventListener('click', function() {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                generateCalendar();
+            });
+            
+            // Инициализация календаря
+            generateCalendar();
+        });
+    </script>
+</body>
+</html>
+                
