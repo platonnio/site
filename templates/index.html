@@ -197,13 +197,11 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
-            // Текущая дата и выбранные даты
             let currentDate = new Date();
             let selectedStartDate = null;
             let selectedEndDate = null;
             let bookedDates = [];
             
-            // Элементы DOM
             const calendarEl = document.getElementById('calendar');
             const currentMonthEl = document.getElementById('current-month');
             const prevMonthBtn = document.getElementById('prev-month');
@@ -215,26 +213,22 @@
             const checkoutInput = document.getElementById('checkout');
             const submitBtn = document.getElementById('submit-btn');
             
-            // Загрузка занятых дат с сервера
             async function loadBookedDates() {
                 try {
-                    const response = await fetch('/api/bookings');
-                    if (!response.ok) throw new Error('Ошибка загрузки данных');
+                    const response = await fetch('/api/bookings?_=' + new Date().getTime());
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     return await response.json();
                 } catch (error) {
-                    console.error('Ошибка:', error);
-                    alert('Не удалось загрузить данные о бронированиях');
+                    console.error('Ошибка загрузки бронирований:', error);
                     return [];
                 }
             }
             
-            // Форматирование даты для отображения
             function formatDisplayDate(date) {
                 const options = { day: 'numeric', month: 'long', year: 'numeric' };
                 return date.toLocaleDateString('ru-RU', options);
             }
             
-            // Форматирование даты для отправки на сервер
             function formatDateForBackend(date) {
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -242,12 +236,43 @@
                 return `${year}-${month}-${day}`;
             }
             
-            // Генерация календаря
+            function isDateBooked(date) {
+                return bookedDates.some(booking => {
+                    const checkin = new Date(booking.checkin);
+                    const checkout = new Date(booking.checkout);
+                    return date >= checkin && date <= checkout;
+                });
+            }
+            
+            function isSameDate(date1, date2) {
+                return date1.getFullYear() === date2.getFullYear() && 
+                       date1.getMonth() === date2.getMonth() && 
+                       date1.getDate() === date2.getDate();
+            }
+            
+            function updateDaySelection(dayEl, date) {
+                if (selectedStartDate && isSameDate(date, selectedStartDate)) {
+                    dayEl.classList.add('selected');
+                }
+                if (selectedEndDate && isSameDate(date, selectedEndDate)) {
+                    dayEl.classList.add('selected');
+                }
+                if (selectedStartDate && selectedEndDate && 
+                    date > selectedStartDate && date < selectedEndDate) {
+                    dayEl.classList.add('selected');
+                }
+            }
+            
+            function updateMonthHeader() {
+                const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                               'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                currentMonthEl.textContent = `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+            }
+            
             async function generateCalendar() {
                 bookedDates = await loadBookedDates();
                 calendarEl.innerHTML = '';
                 
-                // Заголовки дней недели
                 const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
                 dayNames.forEach(day => {
                     const dayEl = document.createElement('div');
@@ -256,23 +281,19 @@
                     calendarEl.appendChild(dayEl);
                 });
                 
-                // Получаем первый и последний день месяца
                 const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
                 const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
                 const daysInMonth = lastDay.getDate();
                 
-                // Корректировка для понедельника как первого дня недели
                 let startDay = firstDay.getDay();
-                startDay = startDay === 0 ? 6 : startDay - 1; // Вс = 0 -> 6, Пн = 1 -> 0
+                startDay = startDay === 0 ? 6 : startDay - 1;
                 
-                // Пустые ячейки перед первым днем месяца
                 for (let i = 0; i < startDay; i++) {
                     const emptyEl = document.createElement('div');
                     emptyEl.className = 'day';
                     calendarEl.appendChild(emptyEl);
                 }
                 
-                // Ячейки с днями месяца
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 
@@ -281,77 +302,47 @@
                     const dayEl = document.createElement('div');
                     dayEl.className = 'day';
                     dayEl.textContent = day;
+                    dayEl.dataset.date = formatDateForBackend(date);
                     
-                    // Проверка статуса дня
                     if (date < today) {
                         dayEl.classList.add('past');
                     } else {
-                        const isBooked = bookedDates.some(booking => {
-                            const checkin = new Date(booking.checkin);
-                            const checkout = new Date(booking.checkout);
-                            return date >= checkin && date <= checkout;
-                        });
-                        
-                        if (isBooked) {
+                        if (isDateBooked(date)) {
                             dayEl.classList.add('booked');
                         } else {
                             dayEl.addEventListener('click', () => selectDate(date));
                         }
                     }
                     
-                    // Выделение выбранных дат
-                    if (selectedStartDate && isSameDate(date, selectedStartDate)) {
-                        dayEl.classList.add('selected');
-                    }
-                    if (selectedEndDate && isSameDate(date, selectedEndDate)) {
-                        dayEl.classList.add('selected');
-                    }
-                    if (selectedStartDate && selectedEndDate && 
-                        date > selectedStartDate && date < selectedEndDate) {
-                        dayEl.classList.add('selected');
-                    }
-                    
+                    updateDaySelection(dayEl, date);
                     calendarEl.appendChild(dayEl);
                 }
                 
-                // Обновление заголовка месяца
-                const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
-                               'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-                currentMonthEl.textContent = `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+                updateMonthHeader();
             }
             
-            // Сравнение дат
-            function isSameDate(date1, date2) {
-                return date1.getFullYear() === date2.getFullYear() && 
-                       date1.getMonth() === date2.getMonth() && 
-                       date1.getDate() === date2.getDate();
-            }
-            
-            // Выбор даты
             function selectDate(date) {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 
-                // Проверка на прошедшую дату
                 if (date < today) {
                     alert("Нельзя выбрать прошедшую дату");
                     return;
                 }
                 
-                // Если не выбрана начальная дата или выбраны обе даты
+                if (isDateBooked(date)) {
+                    alert("Эта дата уже занята");
+                    return;
+                }
+                
                 if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
                     selectedStartDate = date;
                     selectedEndDate = null;
                     bookingFormEl.style.display = 'none';
-                } 
-                // Если выбрана только начальная дата
-                else {
-                    // Если новая дата раньше начальной
+                } else {
                     if (date < selectedStartDate) {
                         selectedStartDate = date;
-                    } 
-                    // Если корректный диапазон
-                    else {
+                    } else {
                         selectedEndDate = date;
                         showBookingForm();
                     }
@@ -360,7 +351,6 @@
                 generateCalendar();
             }
             
-            // Показать форму бронирования
             function showBookingForm() {
                 checkinInput.value = formatDateForBackend(selectedStartDate);
                 checkoutInput.value = formatDateForBackend(selectedEndDate);
@@ -368,7 +358,6 @@
                 bookingFormEl.style.display = 'block';
             }
             
-            // Отправка формы бронирования
             bookingForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 submitBtn.disabled = true;
@@ -383,7 +372,8 @@
                     guests: document.getElementById('guests').value,
                     message: document.getElementById('message').value
                 };
-                try{
+                
+                try {
                     const response = await fetch('/api/book', {
                         method: 'POST',
                         headers: {
@@ -401,6 +391,9 @@
                         selectedStartDate = null;
                         selectedEndDate = null;
                         await generateCalendar();
+                        setTimeout(async () => {
+                            await generateCalendar();
+                        }, 1000);
                     } else {
                         alert(result.message || 'Ошибка бронирования');
                     }
@@ -413,7 +406,6 @@
                 }
             });
             
-            // Навигация по месяцам
             prevMonthBtn.addEventListener('click', function() {
                 currentDate.setMonth(currentDate.getMonth() - 1);
                 generateCalendar();
@@ -424,10 +416,8 @@
                 generateCalendar();
             });
             
-            // Инициализация календаря
-            generateCalendar();
+            await generateCalendar();
         });
     </script>
 </body>
 </html>
-                

@@ -6,13 +6,11 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Конфигурация SQLite базы данных
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bookings.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Модель Бронирования
 class Booking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -24,7 +22,6 @@ class Booking(db.Model):
     message = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# Создаем таблицы при первом запуске
 with app.app_context():
     db.create_all()
 
@@ -47,21 +44,18 @@ def create_booking():
     data = request.json
     
     try:
-        # Обрезаем возможные дополнительные символы в дате
         checkin_str = data['checkin'].split('T')[0] if 'T' in data['checkin'] else data['checkin']
         checkout_str = data['checkout'].split('T')[0] if 'T' in data['checkout'] else data['checkout']
         
         checkin = datetime.strptime(checkin_str, '%Y-%m-%d').date()
         checkout = datetime.strptime(checkout_str, '%Y-%m-%d').date()
         
-        # Проверка что дата выезда после даты заезда
         if checkout <= checkin:
             return jsonify({
                 'success': False,
                 'message': 'Дата выезда должна быть после даты заезда'
             }), 400
             
-        # Проверка что даты не в прошлом
         today = datetime.now().date()
         if checkin < today or checkout < today:
             return jsonify({
@@ -69,7 +63,6 @@ def create_booking():
                 'message': 'Нельзя бронировать прошедшие даты'
             }), 400
 
-        # Проверка на пересечение с существующими бронированиями
         conflict = Booking.query.filter(
             (Booking.checkin <= checkout) & 
             (Booking.checkout >= checkin)
@@ -81,7 +74,6 @@ def create_booking():
                 'message': f'Даты заняты (забронировано {conflict.name})'
             }), 400
 
-        # Создание новой записи
         booking = Booking(
             name=data['name'],
             email=data['email'],
@@ -111,5 +103,7 @@ def create_booking():
             'success': False,
             'message': f'Ошибка сервера: {str(e)}'
         }), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
+
